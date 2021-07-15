@@ -1,7 +1,9 @@
 import igor.binarywave as bw
-import pandas as pd
 import numpy as np
-#bw.load(file)
+import pandas as pd
+import pylum.curves
+import re
+import os
 
 def _get_notes(wave):
     note_raw=wave['wave']['note']
@@ -25,34 +27,6 @@ def _get_data(wave):
                             defl=wave['wave']['wData'][:,col_indices['defl']]))
     return wave_frame
 
-class Curve:
-    contact_index=None
-    approach_range=[]
-    dwell_range=[]
-    k=None
-    invOLS=None
-    data=None
-    parameters=None
-    cols=None
-
-    def __init__(self,data,parameters,z_col,t_col,f_col,invOLS,k,dwell_range):
-        self.dwell_range=dwell_range
-        self.k=k
-        self.invOLS=invOLS
-        self.data=data
-        self.parameters=parameters
-        self.cols={'z':z_col,'t':t_col,'f':f_col}
-
-    def get_approach(self):
-        return self.data.loc[0:self.dwell_range[0],:]
-
-    def get_dwell(self):
-        return self.data.loc[self.dwell_range[0]:self.dwell_range[1],:]
-
-    def get_retract(self):
-        return self.data.loc[self.dwell_range[1]:,:]
-
-
 def load_ibw(filename):
     wave=bw.load(filename)
     data=_get_data(wave)
@@ -75,7 +49,30 @@ def load_ibw(filename):
     
     invOLS=float(notes['InvOLS'])
 
-    this_curve=Curve(data=data,parameters=notes,z_col='z',t_col='t',f_col='f',invOLS=invOLS,k=k,dwell_range=dwell_range)
+    this_curve=pylum.curves.Curve(filename=filename.split(os.path.sep)[-1],data=data,parameters=notes,z_col='z',t_col='t',f_col='f',invOLS=invOLS,k=k,dwell_range=dwell_range)
 
     
     return this_curve
+
+def load_curveset_ibw(folder,ident_labels):
+    ident_labels=tuple(ident_labels)
+    regex_str=""
+    for l in ident_labels:
+        regex_str=regex_str+l+f'(?P<{l}>.*)'
+    regex_str=regex_str+'\.ibw'
+    regex=re.compile(regex_str)
+    
+    all_filenames=os.listdir(folder)
+    all_matches=[regex.match(a) for a in all_filenames]
+
+    curve_dict=dict()
+    for m in all_matches:
+        if not m:
+            continue
+        idents=tuple([m.group(a) for a in ident_labels])
+        filename=m.group(0)
+        filepath=os.path.join(folder,filename)
+        curve_dict[idents]=load_ibw(filepath)
+
+    this_curveset=pylum.curves.CurveSet(ident_labels=ident_labels,curve_dict=curve_dict)
+    return this_curveset
