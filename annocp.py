@@ -18,11 +18,18 @@ app=dash.Dash(__name__)
 app.layout=html.Div([
     'Curve',
     html.Div(id='curve-count'),
-    html.Button('<',id='back-button',n_clicks=0),
-    html.Button('>',id='forward-button',n_clicks=0),
+    html.Div([
+        html.Button('<',id='back-button',n_clicks=0),
+        html.Button('>',id='forward-button',n_clicks=0)
+        ]),
     dcc.Graph(id='disp-graph'),
-    html.Br(),
     dcc.Store(id='selected-indices'),
+    'Jog',
+    html.Div([
+        html.Button('<',id='jog-back'),
+        dcc.Input(id='jog-amount',type='number',value=100),
+        html.Button('>',id='jog-forward')
+    ]),
     'Selected Point Index',
     html.Div(id='this-selected-point')
     
@@ -33,6 +40,15 @@ def key_index_from_str(curve_count):
 
 def key_index_to_str(key_index):
     return f'{key_index+1}/{len(all_curve_idents)}'
+
+def get_selected_from_store(data):
+    if data:
+        selected_dict=json.loads(data)
+    else:
+        selected_dict={}
+        for key in all_curve_idents:
+            selected_dict[repr(key)]=0
+    return selected_dict
 
 @app.callback(Output('curve-count','children'),
               Input('back-button','n_clicks'),
@@ -51,41 +67,64 @@ def show_graph(curve_count,selected_indices):
     this_key=all_curve_idents[this_key_index]
     this_curve_data=all_curve_data[this_key]
     fig=go.Figure(all_curve_fig[this_key])
-    if selected_indices:
-        selected_index_dict=json.loads(selected_indices)
-        selected_index=selected_index_dict[repr(this_key)]
-    else:
-        selected_index=0
+    selected_index_dict=get_selected_from_store(selected_indices)
+    selected_index=selected_index_dict[repr(this_key)]
     fig.add_vline(x=this_curve_data.loc[selected_index,'z'])
     return fig
 
 @app.callback(Output('selected-indices','data'),
               Input('disp-graph','clickData'),
+              Input('jog-forward','n_clicks'),
+              Input('jog-back','n_clicks'),
+              State('jog-amount','value'),
               State('curve-count','children'),
               State('selected-indices','data'),prevent_initial_call=True)
-def handle_click(clicked,curve_count,data):
-    this_selection=[a['pointNumber'] for a in clicked['points']]
+def handle_click(clicked,forward,backward,amount,curve_count,data):
     key_index=key_index_from_str(curve_count)
-    new_selected_index=min(this_selection)
-    if data:
-        selected_dict=json.loads(data)
+    this_key=all_curve_idents[key_index]
+    selected_dict=get_selected_from_store(data)
+    prop=dash.callback_context.triggered[0]['prop_id']
+    if 'jog-forward' in prop:
+        selected_dict[repr(this_key)]-=amount
+    elif 'jog-back' in prop:
+        selected_dict[repr(this_key)]+=amount
     else:
-        selected_dict={}
-        for key in all_curve_idents:
-            selected_dict[repr(key)]=0
-    selected_dict[repr(all_curve_idents[key_index])]=new_selected_index
+        this_selection=[a['pointNumber'] for a in clicked['points']]
+        new_selected_index=min(this_selection)
+        selected_dict[repr(this_key)]=new_selected_index
     return json.dumps(selected_dict)
 
 @app.callback(Output('this-selected-point','children'),
               Input('selected-indices','data'),
               Input('curve-count','children'))
 def update_selected_point_index(selected_dict_json,curve_count):
-    if not selected_dict_json:
-        return 0
     key_index=key_index_from_str(curve_count)
-    selected_dict=json.loads(selected_dict_json)
+    selected_dict=get_selected_from_store(selected_dict_json)
     return selected_dict[repr(all_curve_idents[key_index])]
 
+'''
+@app.callback(Output('selected-indices','data'),
+              Input('jog-back','n_clicks'),
+              State('selected-indices','data'),
+              State('curve-count','children'),
+              State('jog-amount','value'))
+def jog_back(nclicks,selected_dict_json,curve_count,jog_amount):
+    key_index=key_index_from_str(curve_count)
+    selected_dict=get_selected_from_store(selected_dict_json)
+    selected_dict[repr(all_curve_idents[key_index])]+=jog_amount
+    return selected_dict
+
+@app.callback(Output('selected-indices','data'),
+              Input('jog-forward','n_clicks'),
+              State('selected-indices','data'),
+              State('curve-count','children'),
+              State('jog-amount','value'))
+def jog_forward(nclicks,selected_dict_json,curve_count,jog_amount):
+    key_index=key_index_from_str(curve_count)
+    selected_dict=get_selected_from_store(selected_dict_json)
+    selected_dict[repr(all_curve_idents[key_index])]-=jog_amount
+    return selected_dict
+'''
 if __name__=='__main__':
     if len(sys.argv)<3:
         raise Exception('annocp should be invoked using a statement like: python -m pylum.annocp cuve_directory ident_label1 ident_label2...')
