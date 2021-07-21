@@ -52,6 +52,9 @@ class CurveSet:
         self.ident_labels=ident_labels
         self.curve_dict=curve_dict
 
+    def __iter__(self):
+        return self.curve_dict.__iter__()
+    
     def pickle(self,filename):
         with open(filename,'wb') as f:
             pickle.dump(self,f)
