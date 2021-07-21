@@ -8,10 +8,13 @@ import random
 import sys
 from pylum import asylum as asy
 import json
+import ast
+import re
 
 all_curve_fig=None
 all_curve_data=None
 all_curve_idents=None
+previous_anno=None
 
 app=dash.Dash(__name__)
 
@@ -31,7 +34,11 @@ app.layout=html.Div([
         html.Button('>',id='jog-forward')
     ]),
     'Selected Point Index',
-    html.Div(id='this-selected-point')
+    html.Div(id='this-selected-point'),
+    html.Div([
+        dcc.Download(id='download-annotations'),
+        html.Button('Download annotations',id='download-button')
+    ])
     
 ])
 
@@ -44,6 +51,8 @@ def key_index_to_str(key_index):
 def get_selected_from_store(data):
     if data:
         selected_dict=json.loads(data)
+    elif previous_anno:
+        selected_dict=previous_anno.copy()
     else:
         selected_dict={}
         for key in all_curve_idents:
@@ -102,35 +111,29 @@ def update_selected_point_index(selected_dict_json,curve_count):
     selected_dict=get_selected_from_store(selected_dict_json)
     return selected_dict[repr(all_curve_idents[key_index])]
 
-'''
-@app.callback(Output('selected-indices','data'),
-              Input('jog-back','n_clicks'),
+@app.callback(Output('download-annotations','data'),
+              Input('download-button','n_clicks'),
               State('selected-indices','data'),
-              State('curve-count','children'),
-              State('jog-amount','value'))
-def jog_back(nclicks,selected_dict_json,curve_count,jog_amount):
-    key_index=key_index_from_str(curve_count)
-    selected_dict=get_selected_from_store(selected_dict_json)
-    selected_dict[repr(all_curve_idents[key_index])]+=jog_amount
-    return selected_dict
+              prevent_initial_call=True)
+def download(clicks,data):
+    return {'content':data,'filename':'cp_annotations.json'}
 
-@app.callback(Output('selected-indices','data'),
-              Input('jog-forward','n_clicks'),
-              State('selected-indices','data'),
-              State('curve-count','children'),
-              State('jog-amount','value'))
-def jog_forward(nclicks,selected_dict_json,curve_count,jog_amount):
-    key_index=key_index_from_str(curve_count)
-    selected_dict=get_selected_from_store(selected_dict_json)
-    selected_dict[repr(all_curve_idents[key_index])]-=jog_amount
-    return selected_dict
-'''
 if __name__=='__main__':
     if len(sys.argv)<3:
-        raise Exception('annocp should be invoked using a statement like: python -m pylum.annocp cuve_directory ident_label1 ident_label2...')
+        raise Exception('annocp should be invoked using a statement like: python -m pylum.annocp cuve_directory ident_label1 ident_label2 ... [annotations=filename.json]')
+
+    anno_re=re.compile('^annotations=(?P<anno_file>.*)')
     curve_dir=sys.argv[1]
     print(f'Loading curves from directory: {curve_dir}')
-    ident_labels=sys.argv[2:]
+    ident_labels=[a for a in sys.argv[2:] if not anno_re.match(a)]
+    anno_args=[anno_re.match(a) for a in sys.argv[2:]]
+    anno_args=[a for a in anno_args if a]
+    if len(anno_args)>1:
+        raise Exception('Only one annotation file may be specified')
+    if anno_args:
+        anno_filename=anno_args[0].group('anno_file')
+        with open(anno_filename,'rt') as anno_file:
+            previous_anno=json.load(anno_file)
     print(f'ident labels are: {str(ident_labels)}')
     curve_set=asy.load_curveset_ibw(curve_dir,ident_labels)
     curve_figs={}
