@@ -10,11 +10,13 @@ from pylum import asylum as asy
 import json
 import ast
 import re
+import os
 
 all_curve_fig=None
 all_curve_data=None
 all_curve_idents=None
 previous_anno=None
+all_curve_folder=None
 
 app=dash.Dash(__name__)
 
@@ -116,7 +118,7 @@ def update_selected_point_index(selected_dict_json,curve_count):
               State('selected-indices','data'),
               prevent_initial_call=True)
 def download(clicks,data):
-    return {'content':data,'filename':'cp_annotations.json'}
+    return {'content':data,'filename':f'{all_curve_folder}_cp_annotations.json'}
 
 if __name__=='__main__':
     if len(sys.argv)<3:
@@ -159,4 +161,5 @@ if __name__=='__main__':
     all_curve_fig=curve_figs
     all_curve_idents=curve_idents
     all_curve_data=curve_data
+    all_curve_folder=curve_dir.split(os.path.sep)[-1]
     app.run_server(debug=True)
