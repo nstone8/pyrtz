@@ -96,9 +96,18 @@ def handle_click(clicked,forward,backward,amount,curve_count,data):
     selected_dict=get_selected_from_store(data)
     prop=dash.callback_context.triggered[0]['prop_id']
     if 'jog-forward' in prop:
-        selected_dict[repr(this_key)]-=amount
+        cur_index=selected_dict[repr(this_key)]
+        cur_index-=amount
+        if cur_index<0:
+            cur_index=0
+        selected_dict[repr(this_key)]=cur_index
     elif 'jog-back' in prop:
-        selected_dict[repr(this_key)]+=amount
+        max_index=all_curve_data[this_key].shape[0]-1
+        cur_index=selected_dict[repr(this_key)]
+        cur_index+=amount
+        if cur_index>max_index:
+            cur_index=max_index
+        selected_dict[repr(this_key)]=cur_index
     else:
         this_selection=[a['pointNumber'] for a in clicked['points']]
         new_selected_index=min(this_selection)
