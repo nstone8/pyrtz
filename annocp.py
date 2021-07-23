@@ -35,6 +35,13 @@ app.layout=html.Div([
         dcc.Input(id='jog-amount',type='number',value=100),
         html.Button('>',id='jog-forward')
     ]),
+    html.Div([
+        dcc.Checklist(options=[dict(label='Zoom',value='zoom')],value=[],id='zoom-checkbox'),
+        'x',
+        dcc.Input(id='x-zoom',type='number',value=1E-6),
+        'y',
+        dcc.Input(id='y-zoom',type='number',value=1E-9)
+    ]),
     'Selected Point Index',
     html.Div(id='this-selected-point'),
     html.Div([
@@ -72,15 +79,30 @@ def update_curve_number(back_clicks,forward_clicks):
 
 @app.callback(Output('disp-graph','figure'),
               Input('curve-count','children'),
-              Input('selected-indices','data'))
-def show_graph(curve_count,selected_indices):
+              Input('selected-indices','data'),
+              Input('zoom-checkbox','value'),
+              State('x-zoom','value'),
+              State('y-zoom','value'))
+def show_graph(curve_count,selected_indices,zoom,x_range,y_range):
+    print(f'x_range: {x_range}, y_range: {y_range}')
     this_key_index=key_index_from_str(curve_count)
     this_key=all_curve_idents[this_key_index]
     this_curve_data=all_curve_data[this_key]
     fig=go.Figure(all_curve_fig[this_key])
     selected_index_dict=get_selected_from_store(selected_indices)
     selected_index=selected_index_dict[repr(this_key)]
-    fig.add_vline(x=this_curve_data.loc[selected_index,'z'])
+    selected_z=this_curve_data.loc[selected_index,'z']
+    selected_f=this_curve_data.loc[selected_index,'f']
+    fig.add_vline(x=selected_z)
+    if zoom:
+        y_range=[selected_f-y_range/2,selected_f+y_range/2]
+        x_range=[selected_z-x_range/2,selected_z+x_range/2][::-1]
+        print(f'selected_z: {selected_z}, selected_f: {selected_f}')
+        print(f'x range: {x_range}, y range: {y_range}')
+        #fig.update_yaxes(range=y_range)
+        #fig.update_xaxes(range=x_range)
+        fig.update_layout(dict(xaxis=dict(range=x_range,autorange=False),yaxis=dict(range=y_range)))
+
     return fig
 
 @app.callback(Output('selected-indices','data'),
