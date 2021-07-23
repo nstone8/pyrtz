@@ -3,6 +3,10 @@ import pandas as pd
 from plotly import graph_objs as go
 from plotly import offline as py
 import numpy as np
+import json
+import ast
+import scipy.optimize
+from plotly import express as px
 
 dark_colors=['rgb(31, 119, 180)', 'rgb(255, 127, 14)',
              'rgb(44, 160, 44)', 'rgb(214, 39, 40)',
@@ -25,7 +29,9 @@ class Curve:
     data=None
     parameters=None
     cols=None
-
+    stiff_fit=None
+    biexponential_fit=None
+    
     def __init__(self,filename,data,parameters,z_col,t_col,f_col,invOLS,k,dwell_range):
         self.dwell_range=dwell_range
         self.k=k
@@ -44,6 +50,103 @@ class Curve:
     def get_retract(self):
         return self.data.loc[self.dwell_range[1]:,:]
 
+    def set_contact_index(self,cp):
+        self.contact_index=cp
+
+    def fit_stiffness(self,probe_diameter,fit_range=[0,1]):
+        if self.contact_index==None:
+            raise Exception('Contact index has not been set, stiffness fits cannot continue')
+        
+        r=probe_diameter/2
+        #Get only contact region and adjust force and indentation so values at contact are 0
+        indent_raw=self.get_approach().loc[self.contact_index:,self.cols['z']].to_numpy()
+        force_raw=self.get_approach().loc[self.contact_index:,self.cols['f']].to_numpy()
+        indent_norm=indent_raw-indent_raw[0]
+        force_norm=force_raw-force_raw[0]
+        def get_force(indentation,e_star):
+            return (4/3)*e_star*(r**0.5)*(indentation**1.5)
+
+        #Figure out data subset for fitting
+        fmin=force_norm[-1]*fit_range[0]
+        fmax=force_norm[-1]*fit_range[1]
+
+        imin=0
+        imax=0
+        for i in list(range(len(force_norm)))[::-1]:
+            if force_norm[i]>=fmin:
+                imin=i
+            if force_norm[i]>=fmax:
+                imax=i
+
+        indent_norm_fit=indent_norm[imin:imax]
+        force_norm_fit=force_norm[imin:imax]
+
+        #run fit
+        popt,pcov=scipy.optimize.curve_fit(get_force,indent_norm_fit,force_norm_fit)
+
+        estar_fit=popt[0]
+        fit_curve=pd.DataFrame(dict(z=indent_norm_fit+indent_raw[0],f=get_force(indent_norm_fit,estar_fit)+force_raw[0]))
+        self.stiff_fit=dict(curve=fit_curve,estar=estar_fit)
+
+    def get_stiffness_fit_figure(self):
+        if not self.stiff_fit:
+            raise Exception('No stiffness fit has yet been performed. Run fit_stiffness method')
+
+        measured_curve=self.get_approach().rename(columns=self.cols)
+        measured_curve.loc[:,'curve']='measured'
+        fit_curve=self.stiff_fit['curve'].copy()
+        fit_curve.loc[:,'curve']='fit'
+        all_curves=pd.concat([measured_curve,fit_curve],ignore_index=True)
+        fig=px.scatter(all_curves,x='z',y='f',color='curve')
+        
+        fig.add_vline(x=measured_curve.loc[self.contact_index,'z'])
+        return fig
+
+    def fit_biexponential(self):
+        fit_data=self.get_dwell().rename(columns=self.cols)
+        f_raw=fit_data['f'].to_numpy()
+        f0=f_raw[0]
+        t_raw=fit_data['t'].to_numpy()
+        #adjust time to start at zero when the dwell begins
+        t_norm=t_raw-t_raw[0]
+
+        #make some good initial guesses
+        c_guess=f_raw[-1]
+        #force value corresponding to ~63% relaxation
+        e_threshold=f0-0.63*(f0-c_guess)
+        #corresponding time
+        e_time=fit_data.loc[fit_data.loc[:,'f']<e_threshold,'t'].to_numpy()[0]
+        tau1_guess=1/e_time
+        tau2_guess=0.1*tau1_guess
+        a_guess=0.9 #arbitrary, took from rasylum, seems to work
+
+        def calc_force(t,tau1,tau2,A,C):
+            return (f0-C)*(A*np.exp(-1*t*tau1)+(1-A)*np.exp(-1*t*tau2))+C
+
+        bounds=([0,0,0,-np.inf],[np.inf,np.inf,1,np.inf])
+        p0=[tau1_guess,tau2_guess,a_guess,c_guess]
+
+        popt,pconv=scipy.optimize.curve_fit(calc_force,t_norm,f_raw,bounds=bounds,p0=p0)
+        biexponential_fit=dict(tau1=popt[0],tau2=popt[1],A=popt[2],C=popt[3])
+
+        fit_curve=pd.DataFrame(dict(t=fit_data['t'],f=calc_force(t_norm,biexponential_fit['tau1'],biexponential_fit['tau2'],biexponential_fit['A'],biexponential_fit['C'])))
+
+        biexponential_fit['curve']=fit_curve
+        self.biexponential_fit=biexponential_fit
+
+    def get_biexponential_fit_figure(self):
+        if not self.biexponential_fit:
+            raise Exception('No biexponential fit has yet been performed. Run fit_biexponential method')
+
+        measured_curve=self.get_dwell().rename(columns=self.cols)
+        measured_curve.loc[:,'curve']='measured'
+
+        fit_curve=self.biexponential_fit['curve'].copy()
+        fit_curve.loc[:,'curve']='fit'
+
+        all_curves=pd.concat([measured_curve,fit_curve],ignore_index=True)
+        return px.scatter(all_curves,x='t',y='f',color='curve')
+        
 class CurveSet:
     ident_labels=None
     curve_dict=None
@@ -164,3 +267,58 @@ class CurveSet:
 
         py.plot(fig,filename=filename)
         return all_metrics
+
+    def update_cp_annotations(self,cp_dict):
+        for key in cp_dict:
+            self[key].set_contact_index(cp_dict[key])
+
+    def update_cp_annotations_from_file(self,cp_file):
+        with open(cp_file,'rt') as cf:
+            anno_str_dict=json.load(cf)
+
+        anno_tuple_dict={}
+        for key in anno_str_dict:
+            tuple_key=ast.literal_eval(key)
+            anno_tuple_dict[tuple_key]=anno_str_dict[key]
+
+        self.update_cp_annotations(anno_tuple_dict)
+
+    def fit_all_stiff(self,probe_diameter,fit_range=[0,1]):
+        for key in self:
+            self[key].fit_stiffness(probe_diameter,fit_range)
+
+    def fit_all_biexponential(self):
+        for key in self:
+            self[key].fit_biexponential()
+
+    def fit_all(self,probe_diameter,fit_range=[0,1]):
+        self.fit_all_stiff(probe_diameter,fit_range)
+        self.fit_all_biexponential()
+
+    def get_stiff_results(self):
+        entries=[]
+        for key in self:
+            df_dict={}
+            for label,ident in zip(self.ident_labels,key):
+                df_dict[label]=[ident]
+            df_dict['estar']=[self[key].stiff_fit['estar']]
+            entries.append(pd.DataFrame(df_dict))
+        return(pd.concat(entries,ignore_index=True))
+
+    def get_biexponential_results(self):
+        entries=[]
+        for key in self:
+            df_dict={}
+            for label,ident in zip(self.ident_labels,key):
+                df_dict[label]=[ident]
+            df_dict['tau1']=[self[key].biexponential_fit['tau1']]
+            df_dict['tau2']=[self[key].biexponential_fit['tau2']]
+            df_dict['A']=[self[key].biexponential_fit['A']]
+            df_dict['C']=[self[key].biexponential_fit['C']]
+            entries.append(pd.DataFrame(df_dict))
+        return(pd.concat(entries,ignore_index=True))
+            
+    def get_all_results(self):
+        stiff_results=self.get_stiff_results()
+        biexponential_results=self.get_biexponential_results()
+        return pd.merge(stiff_results,biexponential_results)
