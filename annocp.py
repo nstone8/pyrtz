@@ -38,9 +38,9 @@ app.layout=html.Div([
     html.Div([
         dcc.Checklist(options=[dict(label='Zoom',value='zoom')],value=[],id='zoom-checkbox'),
         'x',
-        dcc.Input(id='x-zoom',type='number',value=1E-6),
+        dcc.Input(id='x-zoom',type='number',debounce=True,value=1E-6),
         'y',
-        dcc.Input(id='y-zoom',type='number',value=1E-9)
+        dcc.Input(id='y-zoom',type='number',debounce=True,value=1E-9)
     ]),
     'Selected Point Index',
     html.Div(id='this-selected-point'),
@@ -69,20 +69,21 @@ def get_selected_from_store(data):
     return selected_dict
 
 @app.callback(Output('curve-count','children'),
+              Output('zoom-checkbox','value'),
               Input('back-button','n_clicks'),
               Input('forward-button','n_clicks'))
 def update_curve_number(back_clicks,forward_clicks):
     new_index=forward_clicks-back_clicks
     if new_index<0:
         new_index=0
-    return key_index_to_str(new_index)
+    return key_index_to_str(new_index), []
 
 @app.callback(Output('disp-graph','figure'),
               Input('curve-count','children'),
               Input('selected-indices','data'),
               Input('zoom-checkbox','value'),
-              State('x-zoom','value'),
-              State('y-zoom','value'))
+              Input('x-zoom','value'),
+              Input('y-zoom','value'))
 def show_graph(curve_count,selected_indices,zoom,x_range,y_range):
     print(f'x_range: {x_range}, y_range: {y_range}')
     this_key_index=key_index_from_str(curve_count)
@@ -180,7 +181,7 @@ if __name__=='__main__':
         fig=px.scatter(this_curve.get_approach(),x='z',y='f')
         #hovermode=False
         fig.update_layout(clickmode='event+select')
-        fig.update_xaxes(autorange='reversed')
+        fig.update_xaxes(autorange='reversed',showgrid=False)
         curve_figs[ident]=fig
         curve_data[ident]=this_curve_data
         curves_processed+=1

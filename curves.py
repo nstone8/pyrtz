@@ -7,6 +7,8 @@ import json
 import ast
 import scipy.optimize
 from plotly import express as px
+import io
+import PyPDF2 as pdf
 
 dark_colors=['rgb(31, 119, 180)', 'rgb(255, 127, 14)',
              'rgb(44, 160, 44)', 'rgb(214, 39, 40)',
@@ -98,7 +100,8 @@ class Curve:
         fit_curve.loc[:,'curve']='fit'
         all_curves=pd.concat([measured_curve,fit_curve],ignore_index=True)
         fig=px.scatter(all_curves,x='z',y='f',color='curve')
-        
+        fig.update_xaxes(title={'text':'Z Position (m)'})
+        fig.update_yaxes(title={'text':'Force (N)'})
         fig.add_vline(x=measured_curve.loc[self.contact_index,'z'])
         return fig
 
@@ -132,6 +135,8 @@ class Curve:
         fit_curve=pd.DataFrame(dict(t=fit_data['t'],f=calc_force(t_norm,biexponential_fit['tau1'],biexponential_fit['tau2'],biexponential_fit['A'],biexponential_fit['C'])))
 
         biexponential_fit['curve']=fit_curve
+        biexponential_fit['tau_fast']=max(biexponential_fit['tau1'],biexponential_fit['tau2'])
+        biexponential_fit['tau_slow']=min(biexponential_fit['tau1'],biexponential_fit['tau2'])
         self.biexponential_fit=biexponential_fit
 
     def get_biexponential_fit_figure(self):
@@ -145,8 +150,11 @@ class Curve:
         fit_curve.loc[:,'curve']='fit'
 
         all_curves=pd.concat([measured_curve,fit_curve],ignore_index=True)
-        return px.scatter(all_curves,x='t',y='f',color='curve')
-        
+        fig=px.scatter(all_curves,x='t',y='f',color='curve')
+        fig.update_xaxes(title={'text':'Time (s)'})
+        fig.update_yaxes(title={'text':'Force (N)'})
+        return fig
+    
 class CurveSet:
     ident_labels=None
     curve_dict=None
@@ -167,6 +175,9 @@ class CurveSet:
 
     def __getitem__(self,index):
         return self.curve_dict[index]
+
+    def remove_curve(self,key):
+        del self.curve_dict[key]
 
     def collate_curves(self):
         all_curves=[]
@@ -313,6 +324,8 @@ class CurveSet:
                 df_dict[label]=[ident]
             df_dict['tau1']=[self[key].biexponential_fit['tau1']]
             df_dict['tau2']=[self[key].biexponential_fit['tau2']]
+            df_dict['tau_fast']=[self[key].biexponential_fit['tau_fast']]
+            df_dict['tau_slow']=[self[key].biexponential_fit['tau_slow']]
             df_dict['A']=[self[key].biexponential_fit['A']]
             df_dict['C']=[self[key].biexponential_fit['C']]
             entries.append(pd.DataFrame(df_dict))
@@ -322,3 +335,41 @@ class CurveSet:
         stiff_results=self.get_stiff_results()
         biexponential_results=self.get_biexponential_results()
         return pd.merge(stiff_results,biexponential_results)
+
+    def export_stiffness_fit_report(self,filepath):
+        merger=pdf.PdfFileMerger()
+        for key in self:
+            this_curve=self[key]
+            if this_curve.stiff_fit==None:
+                raise Exception('Stiffness fit has not been performed, please run stiffness fit before attempting to export fit reports')
+            title=''
+            for label,ident in zip(self.ident_labels,key):
+                title=title+f'{label}{ident}'
+
+            title=title+f" estar: {this_curve.stiff_fit['estar']}"
+            this_fit_fig=this_curve.get_stiffness_fit_figure()
+            this_fit_fig.update_layout(title={'text':title})
+
+            this_fit_fig_pdf=io.BytesIO(this_fit_fig.to_image(format='pdf'))
+            merger.append(this_fit_fig_pdf)
+
+        merger.write(filepath)
+
+    def export_biexponential_fit_report(self,filepath):
+        merger=pdf.PdfFileMerger()
+        for key in self:
+            this_curve=self[key]
+            if this_curve.biexponential_fit==None:
+                raise Exception('Biexponential fit has not been performed, please run biexponential fit before attempting to export fit reports')
+            title=''
+            for label,ident in zip(self.ident_labels,key):
+                title=title+f'{label}{ident}'
+
+            title=title+f" tau_fast: {this_curve.biexponential_fit['tau_fast']}, tau_slow:{this_curve.biexponential_fit['tau_slow']}"
+            this_fit_fig=this_curve.get_biexponential_fit_figure()
+            this_fit_fig.update_layout(title={'text':title})
+
+            this_fit_fig_pdf=io.BytesIO(this_fit_fig.to_image(format='pdf'))
+            merger.append(this_fit_fig_pdf)
+
+        merger.write(filepath)
