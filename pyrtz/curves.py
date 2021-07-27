@@ -686,7 +686,7 @@ class CurveSet:
             for label,ident in zip(self.ident_labels,key):
                 title=title+f'{label}{ident}'
 
-            title=title+f" estar: {this_curve.stiff_fit['estar']}"
+            title=title+f" estar: {this_curve.stiff_fit['estar']}Pa"
             this_fit_fig=this_curve.get_stiffness_fit_figure()
             this_fit_fig.update_layout(title={'text':title})
 
@@ -717,7 +717,7 @@ class CurveSet:
             for label,ident in zip(self.ident_labels,key):
                 title=title+f'{label}{ident}'
 
-            title=title+f" tau_fast: {this_curve.biexponential_fit['tau_fast']}, tau_slow:{this_curve.biexponential_fit['tau_slow']}"
+            title=title+f" tau_fast: {this_curve.biexponential_fit['tau_fast']}/s, tau_slow:{this_curve.biexponential_fit['tau_slow']}/s"
             this_fit_fig=this_curve.get_biexponential_fit_figure()
             this_fit_fig.update_layout(title={'text':title})
 
