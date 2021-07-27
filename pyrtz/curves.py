@@ -236,7 +236,7 @@ class Curve:
         bounds=([0,0,0,-np.inf],[np.inf,np.inf,1,np.inf])
         p0=[tau1_guess,tau2_guess,a_guess,c_guess]
 
-        popt,pconv=scipy.optimize.curve_fit(calc_force,t_norm,f_raw,bounds=bounds,p0=p0)
+        popt,pconv=scipy.optimize.curve_fit(calc_force,t_norm,f_raw,bounds=bounds,p0=p0,jac='3-point')
         biexponential_fit=dict(tau1=popt[0],tau2=popt[1],A=popt[2],C=popt[3])
 
         fit_curve=pd.DataFrame(dict(t=fit_data['t'],f=calc_force(t_norm,biexponential_fit['tau1'],biexponential_fit['tau2'],biexponential_fit['A'],biexponential_fit['C'])))
