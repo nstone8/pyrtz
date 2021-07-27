@@ -6,6 +6,8 @@ import re
 import os
 
 def _get_notes(wave):
+    '''Utility function for processing the 'notes' section of a .ibw file, the end user should not call this function'''
+    
     note_raw=wave['wave']['note']
     note_raw=note_raw.replace(b'\xb0',b'deg') #Asylum seems to store the degree sign in a broken way that python can't parse, replace all occurances of this invalid byte sequence with 'deg'
     all_notes=note_raw.split(b'\r')
@@ -18,6 +20,8 @@ def _get_notes(wave):
     return note_dict
 
 def _get_data(wave):
+    '''Utility function for processing the 'data' section of a .ibw file, the end user should not call this function'''
+    
     labels=[a.decode() for a in wave['wave']['labels'][1] if a]
     col_indices={'rawz':labels.index('Raw'),
                  'defl':labels.index('Defl'),
@@ -27,7 +31,18 @@ def _get_data(wave):
                             defl=wave['wave']['wData'][:,col_indices['defl']]))
     return wave_frame
 
-def load_ibw(filename):
+def load_ibw(filename)->pylum.curves.Curve:
+    '''Load a .ibw file as a Curve object
+
+    --------------------Arguments--------------------
+    filename: File path to load. Should be a .ibw 
+    file created by an Asylum AFM
+
+    ---------------------Returns---------------------
+    A pylum.cuves.Curve object which contains the 
+    force curve stored in the .ibw file located at 
+    filename.'''
+    
     wave=bw.load(filename)
     data=_get_data(wave)
     notes=_get_notes(wave)
@@ -54,7 +69,34 @@ def load_ibw(filename):
     
     return this_curve
 
-def load_curveset_ibw(folder,ident_labels):
+def load_curveset_ibw(folder,ident_labels)->pylum.curves.CurveSet:
+    '''Load a folder of .ibw files as a pylum.curves.CurveSet
+
+    --------------------Arguments--------------------
+    folder: Path to a directory containing .ibw files
+    created by an Asylum AFM to be loaded
+
+    ident_labels: A list of character sequences always
+    found (in the order given) in the files of
+    interest in folder. Intervening strings will be
+    used to distinguish between different measurements
+
+    For example, assume a directory located at
+    ~/experiment contains files with names such as:
+    Sample1Measurement0.ibw
+    Sample1Measurement1.ibw
+    Sample2Measurement0.ibw
+    Sample2Measurement1.ibw
+
+    This dataset could then be loaded by calling
+    pylum.asylum.load_curveset_ibw('~/experiment',
+    ['Sample','Measurement'])
+
+    ---------------------Returns---------------------
+    A pylum.curves.CurveSet object containing all
+    force curves with matching filenames contained
+    in the directory located at folder'''
+    
     ident_labels=tuple(ident_labels)
     regex_str=""
     for l in ident_labels:

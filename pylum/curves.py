@@ -23,6 +23,8 @@ light_colors=['rgba(31, 119, 180, .2)', 'rgba(255, 127, 14, .2)',
               'rgba(188, 189, 34, .2)', 'rgba(23, 190, 207, .2)']
 
 class Curve:
+    '''A class representing a single force curve'''
+
     contact_index=None
     approach_range=[]
     dwell_range=[]
@@ -35,6 +37,41 @@ class Curve:
     biexponential_fit=None
     
     def __init__(self,filename,data,parameters,z_col,t_col,f_col,invOLS,k,dwell_range):
+        '''Construct a new pylum.curves.Curve object. This method should not be called
+        directly by the end user. In normal use, Curve objects should be created by calling
+        pylum.asylum.load_ibw or pylum.asylum.load_curveset_ibw
+
+        --------------------Arguments--------------------
+        filename: A string containing the original .ibw
+        file's name
+
+        data: A pandas.DataFrame containing the force
+        curve itself
+
+        parameters: A dict containing additional
+        information from the .ibw file's notes section
+
+        z_col: The (string) name of the column in data
+        which contains z position data
+
+        t_col: The (string) name of the colomn in data
+        which contains time data
+
+        f_col: The (string) name of the column in data
+        which contains force data
+
+        invOLS: The inverse optical lever sensitivity
+        of the lever used for this measurement
+
+        k: The spring constant of the lever used for
+        this measurement
+
+        dwell_range: A two entry list containing the row
+        indices at which the dwell region begins and ends
+
+        ---------------------Returns---------------------
+        A new pylum.curves.Curve object'''
+        
         self.dwell_range=dwell_range
         self.k=k
         self.invOLS=invOLS
@@ -43,19 +80,76 @@ class Curve:
         self.cols={'z':z_col,'t':t_col,'f':f_col}
         self.filename=filename
 
-    def get_approach(self):
+    def get_approach(self)->pd.DataFrame:
+        '''Get the approach section of the force curve
+
+        ---------------------Returns---------------------
+        A pandas.DataFrame containing the approach
+        region of the force curve'''
+
         return self.data.loc[0:self.dwell_range[0],:]
 
     def get_dwell(self):
+        '''Get the dwell section of the force curve
+
+        ---------------------Returns---------------------
+        A pandas.DataFrame containing the dwellregion of 
+        the force curve'''
+        
         return self.data.loc[self.dwell_range[0]:self.dwell_range[1],:]
 
-    def get_retract(self):
+    def get_retract(self)->pd.DataFrame:
+        '''Get the retract section of the force curve
+
+        ---------------------Returns---------------------
+        A pandas.DataFrame containing the retract region 
+        of the force curve'''
+        
         return self.data.loc[self.dwell_range[1]:,:]
 
     def set_contact_index(self,cp):
+        '''Set the row index corresponding to this curve's
+        contact point. Usually the end user should not
+        call this function directly, instead, the contact
+        points should be identified using pylum.annocp
+
+        --------------------Arguments--------------------
+        cp: the index in self.data which corresponds to
+        the contact point for this force curve
+        
+        ---------------------Returns---------------------
+        
+        None'''
+        
         self.contact_index=cp
 
     def fit_stiffness(self,probe_diameter,fit_range=[0,1]):
+        '''Fit this force curve using the hertz contact model
+        for an elastic sphere indenting an elastic half space
+
+        https://en.wikipedia.org/wiki/Contact_mechanics#Contact_between_a_sphere_and_a_half-space
+        
+        --------------------Arguments--------------------
+        
+        probe_diameter: The diameter of the indenting
+        sphere, in meters
+
+        fit_range: A two entry sequence defining the
+        portion of the force curve to fit as a ratio
+        of the maximum force
+
+        [0,1] fits the entire curve
+
+        [0.25, 0.75] fits the middle 50% of the curve
+
+        any two numbers between 0 and 1 are acceptable as
+        long as the second number is larger than the
+        first
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         if self.contact_index==None:
             raise Exception('Contact index has not been set, stiffness fits cannot continue')
         
@@ -91,6 +185,13 @@ class Curve:
         self.stiff_fit=dict(curve=fit_curve,estar=estar_fit)
 
     def get_stiffness_fit_figure(self):
+        '''Get a figure illustrating the fit resulting from 
+        the last call to self.fit_stiffness
+        
+        ---------------------Returns---------------------
+        A plotly.graph_objs._figure.Figure object
+        illustrating the current fit'''
+
         if not self.stiff_fit:
             raise Exception('No stiffness fit has yet been performed. Run fit_stiffness method')
 
@@ -106,6 +207,12 @@ class Curve:
         return fig
 
     def fit_biexponential(self):
+        '''Fit a biexponential decay function to the dwell region of this force curve
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         fit_data=self.get_dwell().rename(columns=self.cols)
         f_raw=fit_data['f'].to_numpy()
         f0=f_raw[0]
@@ -140,6 +247,13 @@ class Curve:
         self.biexponential_fit=biexponential_fit
 
     def get_biexponential_fit_figure(self):
+        '''Get a figure illustrating the fit resulting from 
+        the last call to self.fit_biexponential
+        
+        ---------------------Returns---------------------
+        A plotly.graph_objs._figure.Figure object 
+        illustrating the current fit'''
+        
         if not self.biexponential_fit:
             raise Exception('No biexponential fit has yet been performed. Run fit_biexponential method')
 
@@ -156,30 +270,97 @@ class Curve:
         return fig
     
 class CurveSet:
+    '''An object representing a set of force curves'''
+    
     ident_labels=None
     curve_dict=None
 
     def __init__(self,ident_labels,curve_dict):
+        '''Construct a new pylum.curves.CurveSet object
+        This constructor should not usually be called
+        by an end user. Instead use 
+        pylum.asylum.load_curveset_ibw
+
+        --------------------Arguments--------------------
+        
+        ident_labels: A list containing labels 
+        corresponding to unique curve identifiers, such
+        as those passed as the ident_labels argument of
+        pylum.asylum.load_curveset_ibw
+
+        curve_dict: A dict whose keys are unique 
+        identifiers and whose values are
+        pylum.curves.Curve objects
+
+        ---------------------Returns---------------------
+
+        A new pylum.curves.CurveSet object'''
+        
         self.ident_labels=ident_labels
         self.curve_dict=curve_dict
 
     def __iter__(self):
+        '''Enable iteration over CurveSets'''
+        
         return self.curve_dict.__iter__()
     
     def pickle(self,filename):
+        '''Dump this curveset to a file
+        
+        --------------------Arguments--------------------
+
+        filename: The path where the object should be
+        saved.
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         with open(filename,'wb') as f:
             pickle.dump(self,f)
 
-    def keys(self):
+    def keys(self)->list:
+        '''Return a list of the unique identifiers 
+        corresponding to each curve in the CurveSet
+
+        ---------------------Returns---------------------
+
+        A list of unique curve identifiers'''
+        
         return list(self.curve_dict.keys())
 
-    def __getitem__(self,index):
+    def __getitem__(self,index)->Curve:
+        '''Enable indexing of CurveSets using
+        curve_set[key] syntax
+
+        ---------------------Returns---------------------
+
+        A single pylum.curves.CurveSet object'''
+        
         return self.curve_dict[index]
 
     def remove_curve(self,key):
+        '''Drop a curve from the CurveSet
+
+        --------------------Arguments--------------------
+
+        key: the unique identifier of the curve to drop
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         del self.curve_dict[key]
 
-    def collate_curves(self):
+    def collate_curves(self)->pd.DataFrame:
+        '''Return all the force curves contained in this
+        CurveSet as a single pandas.DataFrame
+
+        ---------------------Returns---------------------
+
+        A pandas.DataFrame containing every force curve
+        in the CurveSet'''
+        
         all_curves=[]
         for ident in self.keys():
             this_curve=self[ident].data.copy()
@@ -189,7 +370,18 @@ class CurveSet:
         return pd.concat(all_curves,ignore_index=True)
     
     #def normalize_curves(curves,idents,t_col='t',z_col='zSensr',f_col='force'):
-    def normalize_curves(self):
+    def normalize_curves(self)->pd.DataFrame:
+        '''Normalize all curves so that the trigger point
+        corresponds to t=0, z=0, f=0 and return all the 
+        resulting normalized force curves as a single 
+        pandas.DataFrame
+
+        ---------------------Returns---------------------
+
+        A pandas.DataFrame containing every force curve
+        in the CurveSet normalized so that the trigger
+        point corresponds to t=0, z=0, f=0'''
+        
         curves=self.collate_curves()
         idents=list(self.ident_labels)
         cols=self[self.keys()[0]].cols
@@ -228,11 +420,26 @@ class CurveSet:
 
         return curves
 
-
-
-
-    #def plot_traj(data,group,filename='characteristic_trajectories.html',round_dec=4):
     def plot_traj(self,group,filename='characteristic_trajectories.html',round_dec=4):
+        '''Plot the characteristic force curves for each 
+        unique value of group.
+
+        --------------------Arguments--------------------
+
+        group: The ident_label for which unique values
+        correspond to different experimental conditions
+        to be plotted
+
+        filename: The filepath where the resulting plot
+        should be stored
+
+        round_dec: The number of decimal places to round
+        the times of each sample to
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         data=self.normalize_curves()
         time_col='t_norm'
         f_col='f_norm'
@@ -247,11 +454,8 @@ class CurveSet:
         median.loc[:,'metric']='median'
         lower.loc[:,'metric']='lower'
 
-
-
         all_metrics=pd.concat([upper,median,lower],ignore_index=True)
 
-        #all_metrics.loc[:,'physical_line']=[str(a)+'_'+str(b) for a,b in zip(all_metrics.loc[:,group],all_metrics.loc[:,'metric'])]
         traces=[]
         all_groups=list(set(all_metrics.loc[:,group]))
         num_reps=np.ceil(len(all_groups)/len(dark_colors))
@@ -280,10 +484,40 @@ class CurveSet:
         return all_metrics
 
     def update_cp_annotations(self,cp_dict):
+        '''Update the stored contact point for
+        every curve in the CurveSet. Normally end
+        users should instead pass the file created by
+        pylum.annocp to update_cp_annotations_from_file
+        instead
+
+        --------------------Arguments--------------------
+
+        cp_dict: A dict where each key is a unique curve
+        identifier, for which the corresponding value is
+        the index of the contact point in the backing
+        pandas.DataFrame
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         for key in cp_dict:
             self[key].set_contact_index(cp_dict[key])
 
     def update_cp_annotations_from_file(self,cp_file):
+        '''Update the stored contact point for every 
+        curve in the CurveSet using a .json file created
+        by pylum.annocp
+
+        --------------------Arguments--------------------
+
+        cp_file: A .json file containing contact point
+        annotations created by pylum.annocp
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         with open(cp_file,'rt') as cf:
             anno_str_dict=json.load(cf)
 
@@ -295,18 +529,90 @@ class CurveSet:
         self.update_cp_annotations(anno_tuple_dict)
 
     def fit_all_stiff(self,probe_diameter,fit_range=[0,1]):
+        '''Fit all force curves in this CurveSetusing the
+        hertz contact model for an elastic sphere 
+        indenting an elastic half space
+
+        https://en.wikipedia.org/wiki/Contact_mechanics#Contact_between_a_sphere_and_a_half-space
+        
+        --------------------Arguments--------------------
+        
+        probe_diameter: The diameter of the indenting
+        sphere, in meters
+
+        fit_range: A two entry sequence defining the
+        portion of the force curve to fit as a ratio
+        of the maximum force
+
+        [0,1] fits the entire curve
+
+        [0.25, 0.75] fits the middle 50% of the curve
+
+        any two numbers between 0 and 1 are acceptable as
+        long as the second number is larger than the
+        first
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         for key in self:
             self[key].fit_stiffness(probe_diameter,fit_range)
 
     def fit_all_biexponential(self):
+        '''Fit the dwell region of every curve contained in
+        this CurveSet to a biexponential decay function
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         for key in self:
             self[key].fit_biexponential()
 
     def fit_all(self,probe_diameter,fit_range=[0,1]):
+        '''Fit this force curve using the hertz contact model
+        for an elastic sphere indenting an elastic half space
+        and then fit the dwell region of each curve contained
+        in this CurveSet to a biexponential decay function
+
+        https://en.wikipedia.org/wiki/Contact_mechanics#Contact_between_a_sphere_and_a_half-space
+        
+        --------------------Arguments--------------------
+        
+        probe_diameter: The diameter of the indenting
+        sphere, in meters
+
+        fit_range: A two entry sequence defining the
+        portion of the force curve to fit as a ratio
+        of the maximum force
+
+        [0,1] fits the entire curve
+
+        [0.25, 0.75] fits the middle 50% of the curve
+
+        any two numbers between 0 and 1 are acceptable as
+        long as the second number is larger than the
+        first
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         self.fit_all_stiff(probe_diameter,fit_range)
         self.fit_all_biexponential()
 
-    def get_stiff_results(self):
+    def get_stiff_results(self)->pd.DataFrame:
+        '''Export the results of fit_all_stiff as a
+        pandas.DataFrame. If fit_all_stiff has not yet
+        been called on this CurveSet this method will
+        raise an exception
+
+        ---------------------Returns---------------------
+
+        A pandas.DataFrame containing the fit parameters
+        for every Curve in this CurveSet'''
+        
         entries=[]
         for key in self:
             df_dict={}
@@ -316,7 +622,17 @@ class CurveSet:
             entries.append(pd.DataFrame(df_dict))
         return(pd.concat(entries,ignore_index=True))
 
-    def get_biexponential_results(self):
+    def get_biexponential_results(self)->pd.DataFrame:
+        '''Export the results of fit_all_biexponential
+        as a pandas.DataFrame. If fit_all_biexponential
+        has not yet been called on this CurveSet, this
+        method will raise an exception
+
+        ---------------------Returns---------------------
+
+        A pandas.DataFrame containing the fit parameters
+        for every Curve in this CurveSet'''
+        
         entries=[]
         for key in self:
             df_dict={}
@@ -331,12 +647,36 @@ class CurveSet:
             entries.append(pd.DataFrame(df_dict))
         return(pd.concat(entries,ignore_index=True))
             
-    def get_all_results(self):
+    def get_all_results(self)->pd.DataFrame:
+        '''Export the results of fit_all_biexponential
+        and fit_all_stiff as a pandas.DataFrame. If 
+        fit_all_biexponential and fit_all_stiff (or,
+        equivalently fit_all) have not yet been called on
+        this CurveSet, thismethod will raise an
+        exception
+
+        ---------------------Returns---------------------
+
+        A pandas.DataFrame containing the fit parameters
+        for every Curve in this CurveSet'''
+        
         stiff_results=self.get_stiff_results()
         biexponential_results=self.get_biexponential_results()
         return pd.merge(stiff_results,biexponential_results)
 
     def export_stiffness_fit_report(self,filepath):
+        '''Create a .pdf document displaying all
+        stiffness fits for this CurveSet
+
+        --------------------Arguments--------------------
+
+        filepath: The path where the fit report should be
+        saved
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         merger=pdf.PdfFileMerger()
         for key in self:
             this_curve=self[key]
@@ -356,6 +696,18 @@ class CurveSet:
         merger.write(filepath)
 
     def export_biexponential_fit_report(self,filepath):
+        '''Create a .pdf document displaying all
+        biexponential fits for this CurveSet
+
+        --------------------Arguments--------------------
+
+        filepath: The path where the fit report should be
+        saved
+
+        ---------------------Returns---------------------
+
+        None'''
+        
         merger=pdf.PdfFileMerger()
         for key in self:
             this_curve=self[key]
