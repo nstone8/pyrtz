@@ -1,0 +1,24 @@
+[build-system]
+requires = ["flit_core >=2,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.metadata]
+module = "pylum"
+author = "Nicholas Stone"
+author-email = "stone.nicholas@gmail.com"
+home-page = "https://github.com/nstone8/pylum"
+classifiers = [ "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",]
+description-file = "README.md"
+requires-python = ">=3.8"
+requires = [
+	 'dash>=1.21.0',
+	 'dash_core_components>=1.17.1',
+	 'dash_html_components=1.1.4',
+	 'plotly>=5.1.0',
+	 'pandas>=1.0.5',
+	 'numpy>=1.18.5',
+	 'scipy>=1.4.1',
+	 'PyPDF2>=1.26.0',
+	 'igor>=0.3'
+]
+
