@@ -85,7 +85,6 @@ def update_curve_number(back_clicks,forward_clicks):
               Input('x-zoom','value'),
               Input('y-zoom','value'))
 def show_graph(curve_count,selected_indices,zoom,x_range,y_range):
-    print(f'x_range: {x_range}, y_range: {y_range}')
     this_key_index=key_index_from_str(curve_count)
     this_key=all_curve_idents[this_key_index]
     this_curve_data=all_curve_data[this_key]
@@ -98,10 +97,6 @@ def show_graph(curve_count,selected_indices,zoom,x_range,y_range):
     if zoom:
         y_range=[selected_f-y_range/2,selected_f+y_range/2]
         x_range=[selected_z-x_range/2,selected_z+x_range/2][::-1]
-        print(f'selected_z: {selected_z}, selected_f: {selected_f}')
-        print(f'x range: {x_range}, y range: {y_range}')
-        #fig.update_yaxes(range=y_range)
-        #fig.update_xaxes(range=x_range)
         fig.update_layout(dict(xaxis=dict(range=x_range,autorange=False),yaxis=dict(range=y_range)))
 
     return fig
