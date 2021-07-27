@@ -7,18 +7,24 @@ module = "pylum"
 author = "Nicholas Stone"
 author-email = "stone.nicholas@gmail.com"
 home-page = "https://github.com/nstone8/pylum"
-classifiers = [ "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",]
+classifiers = [
+	    'Development Status :: 4 - Beta',
+	    'Framework :: Dash',
+	    'Intended Audience :: Science/Research',
+	    'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+	    'Operating System :: OS Independent',
+	    'Topic :: Scientific/Engineering',
+]
 description-file = "README.md"
 requires-python = ">=3.8"
 requires = [
-	 'dash>=1.21.0',
-	 'dash_core_components>=1.17.1',
-	 'dash_html_components=1.1.4',
-	 'plotly>=5.1.0',
-	 'pandas>=1.0.5',
-	 'numpy>=1.18.5',
-	 'scipy>=1.4.1',
-	 'PyPDF2>=1.26.0',
-	 'igor>=0.3'
+	 'numpy >=1.18.5',
+	 'pandas >=1.0.5',
+	 'scipy >=1.4.1',
+	 'plotly >=5.1.0',
+	 'dash >=1.21.0',
+	 'dash_core_components >=1.17.1',
+	 'dash_html_components >=1.1.4',
+	 'PyPDF2 >=1.26.0',
+	 'igor >=0.3'
 ]
-
