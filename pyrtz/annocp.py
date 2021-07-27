@@ -6,7 +6,7 @@ from plotly import express as px
 from plotly import graph_objs as go
 import random
 import sys
-from pylum import asylum as asy
+from pyrtz import asylum as asy
 import json
 import ast
 import re
@@ -154,7 +154,7 @@ def download(clicks,data):
 
 if __name__=='__main__':
     if len(sys.argv)<3:
-        raise Exception('annocp should be invoked using a statement like: python -m pylum.annocp cuve_directory ident_label1 ident_label2 ... [annotations=filename.json]')
+        raise Exception('annocp should be invoked using a statement like: python -m pyrtz.annocp cuve_directory ident_label1 ident_label2 ... [annotations=filename.json]')
 
     anno_re=re.compile('^annotations=(?P<anno_file>.*)')
     curve_dir=sys.argv[1]

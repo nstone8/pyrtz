@@ -1,7 +1,7 @@
 import igor.binarywave as bw
 import numpy as np
 import pandas as pd
-import pylum.curves
+import pyrtz.curves
 import re
 import os
 
@@ -31,7 +31,7 @@ def _get_data(wave):
                             defl=wave['wave']['wData'][:,col_indices['defl']]))
     return wave_frame
 
-def load_ibw(filename)->pylum.curves.Curve:
+def load_ibw(filename)->pyrtz.curves.Curve:
     '''Load a .ibw file as a Curve object
 
     --------------------Arguments--------------------
@@ -39,7 +39,7 @@ def load_ibw(filename)->pylum.curves.Curve:
     file created by an Asylum AFM
 
     ---------------------Returns---------------------
-    A pylum.cuves.Curve object which contains the 
+    A pyrtz.cuves.Curve object which contains the 
     force curve stored in the .ibw file located at 
     filename.'''
     
@@ -64,13 +64,13 @@ def load_ibw(filename)->pylum.curves.Curve:
     
     invOLS=float(notes['InvOLS'])
 
-    this_curve=pylum.curves.Curve(filename=filename.split(os.path.sep)[-1],data=data,parameters=notes,z_col='z',t_col='t',f_col='f',invOLS=invOLS,k=k,dwell_range=dwell_range)
+    this_curve=pyrtz.curves.Curve(filename=filename.split(os.path.sep)[-1],data=data,parameters=notes,z_col='z',t_col='t',f_col='f',invOLS=invOLS,k=k,dwell_range=dwell_range)
 
     
     return this_curve
 
-def load_curveset_ibw(folder,ident_labels)->pylum.curves.CurveSet:
-    '''Load a folder of .ibw files as a pylum.curves.CurveSet
+def load_curveset_ibw(folder,ident_labels)->pyrtz.curves.CurveSet:
+    '''Load a folder of .ibw files as a pyrtz.curves.CurveSet
 
     --------------------Arguments--------------------
     folder: Path to a directory containing .ibw files
@@ -89,11 +89,11 @@ def load_curveset_ibw(folder,ident_labels)->pylum.curves.CurveSet:
     Sample2Measurement1.ibw
 
     This dataset could then be loaded by calling
-    pylum.asylum.load_curveset_ibw('~/experiment',
+    pyrtz.asylum.load_curveset_ibw('~/experiment',
     ['Sample','Measurement'])
 
     ---------------------Returns---------------------
-    A pylum.curves.CurveSet object containing all
+    A pyrtz.curves.CurveSet object containing all
     force curves with matching filenames contained
     in the directory located at folder'''
     
@@ -116,5 +116,5 @@ def load_curveset_ibw(folder,ident_labels)->pylum.curves.CurveSet:
         filepath=os.path.join(folder,filename)
         curve_dict[idents]=load_ibw(filepath)
 
-    this_curveset=pylum.curves.CurveSet(ident_labels=ident_labels,curve_dict=curve_dict)
+    this_curveset=pyrtz.curves.CurveSet(ident_labels=ident_labels,curve_dict=curve_dict)
     return this_curveset

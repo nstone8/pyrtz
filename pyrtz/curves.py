@@ -37,9 +37,9 @@ class Curve:
     biexponential_fit=None
     
     def __init__(self,filename,data,parameters,z_col,t_col,f_col,invOLS,k,dwell_range):
-        '''Construct a new pylum.curves.Curve object. This method should not be called
+        '''Construct a new pyrtz.curves.Curve object. This method should not be called
         directly by the end user. In normal use, Curve objects should be created by calling
-        pylum.asylum.load_ibw or pylum.asylum.load_curveset_ibw
+        pyrtz.asylum.load_ibw or pyrtz.asylum.load_curveset_ibw
 
         --------------------Arguments--------------------
         filename: A string containing the original .ibw
@@ -70,7 +70,7 @@ class Curve:
         indices at which the dwell region begins and ends
 
         ---------------------Returns---------------------
-        A new pylum.curves.Curve object'''
+        A new pyrtz.curves.Curve object'''
         
         self.dwell_range=dwell_range
         self.k=k
@@ -111,7 +111,7 @@ class Curve:
         '''Set the row index corresponding to this curve's
         contact point. Usually the end user should not
         call this function directly, instead, the contact
-        points should be identified using pylum.annocp
+        points should be identified using pyrtz.annocp
 
         --------------------Arguments--------------------
         cp: the index in self.data which corresponds to
@@ -276,25 +276,25 @@ class CurveSet:
     curve_dict=None
 
     def __init__(self,ident_labels,curve_dict):
-        '''Construct a new pylum.curves.CurveSet object
+        '''Construct a new pyrtz.curves.CurveSet object
         This constructor should not usually be called
         by an end user. Instead use 
-        pylum.asylum.load_curveset_ibw
+        pyrtz.asylum.load_curveset_ibw
 
         --------------------Arguments--------------------
         
         ident_labels: A list containing labels 
         corresponding to unique curve identifiers, such
         as those passed as the ident_labels argument of
-        pylum.asylum.load_curveset_ibw
+        pyrtz.asylum.load_curveset_ibw
 
         curve_dict: A dict whose keys are unique 
         identifiers and whose values are
-        pylum.curves.Curve objects
+        pyrtz.curves.Curve objects
 
         ---------------------Returns---------------------
 
-        A new pylum.curves.CurveSet object'''
+        A new pyrtz.curves.CurveSet object'''
         
         self.ident_labels=ident_labels
         self.curve_dict=curve_dict
@@ -335,7 +335,7 @@ class CurveSet:
 
         ---------------------Returns---------------------
 
-        A single pylum.curves.CurveSet object'''
+        A single pyrtz.curves.CurveSet object'''
         
         return self.curve_dict[index]
 
@@ -487,7 +487,7 @@ class CurveSet:
         '''Update the stored contact point for
         every curve in the CurveSet. Normally end
         users should instead pass the file created by
-        pylum.annocp to update_cp_annotations_from_file
+        pyrtz.annocp to update_cp_annotations_from_file
         instead
 
         --------------------Arguments--------------------
@@ -507,12 +507,12 @@ class CurveSet:
     def update_cp_annotations_from_file(self,cp_file):
         '''Update the stored contact point for every 
         curve in the CurveSet using a .json file created
-        by pylum.annocp
+        by pyrtz.annocp
 
         --------------------Arguments--------------------
 
         cp_file: A .json file containing contact point
-        annotations created by pylum.annocp
+        annotations created by pyrtz.annocp
 
         ---------------------Returns---------------------
 

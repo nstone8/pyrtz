@@ -3,10 +3,10 @@ requires = ["flit_core >=2,<4"]
 build-backend = "flit_core.buildapi"
 
 [tool.flit.metadata]
-module = "pylum"
+module = "pyrtz"
 author = "Nicholas Stone"
 author-email = "stone.nicholas@gmail.com"
-home-page = "https://github.com/nstone8/pylum"
+home-page = "https://github.com/nstone8/pyrtz"
 classifiers = [
 	    'Development Status :: 4 - Beta',
 	    'Framework :: Dash',
