@@ -1,3 +1,3 @@
 'Force spectroscopy in Python'
 
-__version__='0.1.3'
+__version__='0.1.4'
