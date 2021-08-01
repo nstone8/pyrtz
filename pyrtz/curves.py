@@ -123,6 +123,32 @@ class Curve:
         
         self.contact_index=cp
 
+    def correct_virt_defl(self):
+        '''Correct for non-zero slope of approach curves
+        before contact point. This function fits a line
+        to any points before the annotated contact point
+        and then subtracts this line from the approach
+        curve. This function updates the curve object
+        in place. Note: this function will only update
+        the 'f' column of self.data.
+        
+        ---------------------Returns---------------------
+        
+        None'''
+
+        if self.contact_index==None:
+            raise Exception('Contact index has not been set. Please update contact point annotations')
+
+        fit_data=self.data.iloc[:self.contact_index,:]
+        model_func=lambda x,m,b: m*x+b
+        x_data=fit_data.loc[:,self.cols['z']].to_numpy()
+        y_data=fit_data.loc[:,self.cols['f']].to_numpy()
+        popt,pconv=scipy.optimize.curve_fit(model_func,x_data,y_data)
+
+        f_line=model_func(self.data.loc[:,self.cols['z']],*popt)
+
+        self.data.loc[:,self.cols['f']]=self.data.loc[:,self.cols['f']]-f_line
+        
     def fit_stiffness(self,probe_diameter,fit_range=[0,1]):
         '''Fit this force curve using the hertz contact model
         for an elastic sphere indenting an elastic half space
@@ -195,7 +221,7 @@ class Curve:
         if not self.stiff_fit:
             raise Exception('No stiffness fit has yet been performed. Run fit_stiffness method')
 
-        measured_curve=self.get_approach().rename(columns=self.cols)
+        measured_curve=self.get_approach().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
         measured_curve.loc[:,'curve']='measured'
         fit_curve=self.stiff_fit['curve'].copy()
         fit_curve.loc[:,'curve']='fit'
@@ -213,7 +239,7 @@ class Curve:
 
         None'''
         
-        fit_data=self.get_dwell().rename(columns=self.cols)
+        fit_data=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
         f_raw=fit_data['f'].to_numpy()
         f0=f_raw[0]
         t_raw=fit_data['t'].to_numpy()
@@ -257,7 +283,7 @@ class Curve:
         if not self.biexponential_fit:
             raise Exception('No biexponential fit has yet been performed. Run fit_biexponential method')
 
-        measured_curve=self.get_dwell().rename(columns=self.cols)
+        measured_curve=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
         measured_curve.loc[:,'curve']='measured'
 
         fit_curve=self.biexponential_fit['curve'].copy()
@@ -351,6 +377,23 @@ class CurveSet:
         None'''
         
         del self.curve_dict[key]
+
+    def correct_virt_defl(self):
+        '''Correct for non-zero slope of approach curves
+        before contact point. This function fits a line
+        to any points before the annotated contact point
+        and then subtracts this line from the approach
+        curve. This function updates the curve object
+        in place. Note: this function will only update
+        the 'f' column of curve.data.
+        
+        ---------------------Returns---------------------
+        
+        None'''
+
+        for key in self:
+            self[key].correct_virt_defl()
+
 
     def collate_curves(self)->pd.DataFrame:
         '''Return all the force curves contained in this
