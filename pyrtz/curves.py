@@ -35,6 +35,7 @@ class Curve:
     cols=None
     stiff_fit=None
     biexponential_fit=None
+    exponential_fit=None
     
     def __init__(self,filename,data,parameters,z_col,t_col,f_col,invOLS,k,dwell_range):
         '''Construct a new pyrtz.curves.Curve object. This method should not be called
@@ -282,6 +283,66 @@ class Curve:
         
         if not self.biexponential_fit:
             raise Exception('No biexponential fit has yet been performed. Run fit_biexponential method')
+
+        measured_curve=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
+        measured_curve.loc[:,'curve']='measured'
+
+        fit_curve=self.biexponential_fit['curve'].copy()
+        fit_curve.loc[:,'curve']='fit'
+
+        all_curves=pd.concat([measured_curve,fit_curve],ignore_index=True)
+        fig=px.scatter(all_curves,x='t',y='f',color='curve')
+        fig.update_xaxes(title={'text':'Time (s)'})
+        fig.update_yaxes(title={'text':'Force (N)'})
+        return fig
+
+    def fit_exponential(self):
+        '''Fit an exponential decay function to the dwell region of this force curve
+
+        ---------------------Returns---------------------
+
+        None'''
+        
+        fit_data=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
+        f_raw=fit_data['f'].to_numpy()
+        f0=f_raw[0]
+        t_raw=fit_data['t'].to_numpy()
+        #adjust time to start at zero when the dwell begins
+        t_norm=t_raw-t_raw[0]
+
+        #make some good initial guesses
+        c_guess=f_raw[-1]
+        #force value corresponding to ~63% relaxation
+        e_threshold=f0-0.63*(f0-c_guess)
+        #corresponding time
+        e_time=fit_data.loc[fit_data.loc[:,'f']<e_threshold,'t'].to_numpy()[0]
+        tau0_guess=1/e_time
+
+        def calc_force(t,tau0,C):
+            return (f0-C)*np.exp(-1*t*tau0)+C
+
+        bounds=([0,-np.inf],[np.inf,np.inf])
+        p0=[tau0_guess,c_guess]
+
+        popt,pconv=scipy.optimize.curve_fit(calc_force,t_norm,f_raw,bounds=bounds,p0=p0,jac='3-point')
+        exponential_fit=dict(tau0=popt[0],C0=popt[0])
+
+        fit_curve=pd.DataFrame(dict(t=fit_data['t'],f=calc_force(t_norm,exponential_fit['tau0'],exponential_fit['C0'])))
+
+        exponential_fit['curve']=fit_curve
+        
+        self.exponential_fit=exponential_fit
+
+    def get_exponential_fit_figure(self):
+        '''Get a figure illustrating the fit resulting from 
+        the last call to self.fit_exponential
+        
+        ---------------------Returns---------------------
+        A plotly.graph_objs._figure.Figure object 
+        illustrating the current fit'''
+        
+        if not self.exponential_fit:
+            raise Exception('No biexponential fit has yet been performed. Run fit_exponential method')
 
         measured_curve=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
         measured_curve.loc[:,'curve']='measured'
@@ -613,11 +674,24 @@ class CurveSet:
         for key in self:
             self[key].fit_biexponential()
 
+
+    def fit_all_exponential(self):
+        '''Fit the dwell region of every curve contained in
+        this CurveSet to an exponential decay function
+
+        ---------------------Returns---------------------
+
+        None'''
+        
+        for key in self:
+            self[key].fit_exponential()
+            
     def fit_all(self,probe_diameter,fit_range=[0,1]):
         '''Fit this force curve using the hertz contact model
         for an elastic sphere indenting an elastic half space
         and then fit the dwell region of each curve contained
-        in this CurveSet to a biexponential decay function
+        in this CurveSet to a biexponential and exponential
+        decay function
 
         https://en.wikipedia.org/wiki/Contact_mechanics#Contact_between_a_sphere_and_a_half-space
         
@@ -644,6 +718,7 @@ class CurveSet:
         
         self.fit_all_stiff(probe_diameter,fit_range)
         self.fit_all_biexponential()
+        self.fit_all_exponential()
 
     def get_stiff_results(self)->pd.DataFrame:
         '''Export the results of fit_all_stiff as a
@@ -689,23 +764,62 @@ class CurveSet:
             df_dict['C']=[self[key].biexponential_fit['C']]
             entries.append(pd.DataFrame(df_dict))
         return(pd.concat(entries,ignore_index=True))
-            
-    def get_all_results(self)->pd.DataFrame:
-        '''Export the results of fit_all_biexponential
-        and fit_all_stiff as a pandas.DataFrame. If 
-        fit_all_biexponential and fit_all_stiff (or,
-        equivalently fit_all) have not yet been called on
-        this CurveSet, thismethod will raise an
-        exception
+
+    def get_exponential_results(self)->pd.DataFrame:
+        '''Export the results of fit_all_exponential
+        as a pandas.DataFrame. If fit_all_exponential
+        has not yet been called on this CurveSet, this
+        method will raise an exception
 
         ---------------------Returns---------------------
 
         A pandas.DataFrame containing the fit parameters
         for every Curve in this CurveSet'''
         
-        stiff_results=self.get_stiff_results()
-        biexponential_results=self.get_biexponential_results()
-        return pd.merge(stiff_results,biexponential_results)
+        entries=[]
+        for key in self:
+            df_dict={}
+            for label,ident in zip(self.ident_labels,key):
+                df_dict[label]=[ident]
+            df_dict['tau0']=[self[key].exponential_fit['tau0']]
+            df_dict['C0']=[self[key].exponential_fit['C0']]
+            entries.append(pd.DataFrame(df_dict))
+        return(pd.concat(entries,ignore_index=True))
+            
+    def get_all_results(self)->pd.DataFrame:
+        '''Export the results of all fits which have been
+        performed on this CurveSet
+
+        ---------------------Returns---------------------
+
+        A pandas.DataFrame containing the fit parameters
+        for every Curve in this CurveSet'''
+        all_results=[]
+        try:
+            stiff_results=self.get_stiff_results()
+            all_results.append(stiff_results)
+        except TypeError: #This is the exception that happens when the fits have not yet been run
+            pass
+        try:
+            biexponential_results=self.get_biexponential_results()
+            all_results.append(biexponential_results)
+        except TypeError: #This is the exception that happens when the fits have not yet been run
+            pass
+        try:
+            exponential_results=self.get_exponential_results()
+            all_results.append(exponential_results)
+        except TypeError: #This is the exception that happens when the fits have not yet been run
+            pass
+        if len(all_results)<1:
+            raise Exception('No fits have yet been run. Please run a fit before attempting to export results')
+        
+        elif len(all_results)==1:
+            return all_results[0]
+        else:
+            res=all_results.pop(0)
+            while all_results:
+                res=pd.merge(res,all_results.pop(0))
+        return res
 
     def export_stiffness_fit_report(self,filepath):
         '''Create a .pdf document displaying all
