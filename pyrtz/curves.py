@@ -36,7 +36,7 @@ class Curve:
     stiff_fit=None
     biexponential_fit=None
     exponential_fit=None
-    
+
     def __init__(self,filename,data,parameters,z_col,t_col,f_col,invOLS,k,dwell_range):
         '''Construct a new pyrtz.curves.Curve object. This method should not be called
         directly by the end user. In normal use, Curve objects should be created by calling
@@ -72,7 +72,7 @@ class Curve:
 
         ---------------------Returns---------------------
         A new pyrtz.curves.Curve object'''
-        
+
         self.dwell_range=dwell_range
         self.k=k
         self.invOLS=invOLS
@@ -94,18 +94,18 @@ class Curve:
         '''Get the dwell section of the force curve
 
         ---------------------Returns---------------------
-        A pandas.DataFrame containing the dwellregion of 
+        A pandas.DataFrame containing the dwellregion of
         the force curve'''
-        
+
         return self.data.loc[self.dwell_range[0]:self.dwell_range[1],:]
 
     def get_retract(self)->pd.DataFrame:
         '''Get the retract section of the force curve
 
         ---------------------Returns---------------------
-        A pandas.DataFrame containing the retract region 
+        A pandas.DataFrame containing the retract region
         of the force curve'''
-        
+
         return self.data.loc[self.dwell_range[1]:,:]
 
     def set_contact_index(self,cp):
@@ -117,11 +117,11 @@ class Curve:
         --------------------Arguments--------------------
         cp: the index in self.data which corresponds to
         the contact point for this force curve
-        
+
         ---------------------Returns---------------------
-        
+
         None'''
-        
+
         self.contact_index=cp
 
     def correct_virt_defl(self):
@@ -132,9 +132,9 @@ class Curve:
         curve. This function updates the curve object
         in place. Note: this function will only update
         the 'f' column of self.data.
-        
+
         ---------------------Returns---------------------
-        
+
         None'''
 
         if self.contact_index==None:
@@ -149,15 +149,15 @@ class Curve:
         f_line=model_func(self.data.loc[:,self.cols['z']],*popt)
 
         self.data.loc[:,self.cols['f']]=self.data.loc[:,self.cols['f']]-f_line
-        
+
     def fit_stiffness(self,probe_diameter,fit_range=[0,1]):
         '''Fit this force curve using the hertz contact model
         for an elastic sphere indenting an elastic half space
 
         https://en.wikipedia.org/wiki/Contact_mechanics#Contact_between_a_sphere_and_a_half-space
-        
+
         --------------------Arguments--------------------
-        
+
         probe_diameter: The diameter of the indenting
         sphere, in meters
 
@@ -176,10 +176,10 @@ class Curve:
         ---------------------Returns---------------------
 
         None'''
-        
+
         if self.contact_index==None:
             raise Exception('Contact index has not been set, stiffness fits cannot continue')
-        
+
         r=probe_diameter/2
         #Get only contact region and adjust force and indentation so values at contact are 0
         indent_raw=self.get_approach().loc[self.contact_index:,self.cols['z']].to_numpy()
@@ -212,9 +212,9 @@ class Curve:
         self.stiff_fit=dict(curve=fit_curve,estar=estar_fit)
 
     def get_stiffness_fit_figure(self):
-        '''Get a figure illustrating the fit resulting from 
+        '''Get a figure illustrating the fit resulting from
         the last call to self.fit_stiffness
-        
+
         ---------------------Returns---------------------
         A plotly.graph_objs._figure.Figure object
         illustrating the current fit'''
@@ -239,7 +239,7 @@ class Curve:
         ---------------------Returns---------------------
 
         None'''
-        
+
         fit_data=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
         f_raw=fit_data['f'].to_numpy()
         f0=f_raw[0]
@@ -274,13 +274,13 @@ class Curve:
         self.biexponential_fit=biexponential_fit
 
     def get_biexponential_fit_figure(self):
-        '''Get a figure illustrating the fit resulting from 
+        '''Get a figure illustrating the fit resulting from
         the last call to self.fit_biexponential
-        
+
         ---------------------Returns---------------------
-        A plotly.graph_objs._figure.Figure object 
+        A plotly.graph_objs._figure.Figure object
         illustrating the current fit'''
-        
+
         if not self.biexponential_fit:
             raise Exception('No biexponential fit has yet been performed. Run fit_biexponential method')
 
@@ -302,7 +302,7 @@ class Curve:
         ---------------------Returns---------------------
 
         None'''
-        
+
         fit_data=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
         f_raw=fit_data['f'].to_numpy()
         f0=f_raw[0]
@@ -330,17 +330,17 @@ class Curve:
         fit_curve=pd.DataFrame(dict(t=fit_data['t'],f=calc_force(t_norm,exponential_fit['tau0'],exponential_fit['C0'])))
 
         exponential_fit['curve']=fit_curve
-        
+
         self.exponential_fit=exponential_fit
 
     def get_exponential_fit_figure(self):
-        '''Get a figure illustrating the fit resulting from 
+        '''Get a figure illustrating the fit resulting from
         the last call to self.fit_exponential
-        
+
         ---------------------Returns---------------------
-        A plotly.graph_objs._figure.Figure object 
+        A plotly.graph_objs._figure.Figure object
         illustrating the current fit'''
-        
+
         if not self.exponential_fit:
             raise Exception('No biexponential fit has yet been performed. Run fit_exponential method')
 
@@ -355,45 +355,45 @@ class Curve:
         fig.update_xaxes(title={'text':'Time (s)'})
         fig.update_yaxes(title={'text':'Force (N)'})
         return fig
-    
+
 class CurveSet:
     '''An object representing a set of force curves'''
-    
+
     ident_labels=None
     curve_dict=None
 
     def __init__(self,ident_labels,curve_dict):
         '''Construct a new pyrtz.curves.CurveSet object
         This constructor should not usually be called
-        by an end user. Instead use 
+        by an end user. Instead use
         pyrtz.asylum.load_curveset_ibw
 
         --------------------Arguments--------------------
-        
-        ident_labels: A list containing labels 
+
+        ident_labels: A list containing labels
         corresponding to unique curve identifiers, such
         as those passed as the ident_labels argument of
         pyrtz.asylum.load_curveset_ibw
 
-        curve_dict: A dict whose keys are unique 
+        curve_dict: A dict whose keys are unique
         identifiers and whose values are
         pyrtz.curves.Curve objects
 
         ---------------------Returns---------------------
 
         A new pyrtz.curves.CurveSet object'''
-        
+
         self.ident_labels=ident_labels
         self.curve_dict=curve_dict
 
     def __iter__(self):
         '''Enable iteration over CurveSets'''
-        
+
         return self.curve_dict.__iter__()
-    
+
     def pickle(self,filename):
         '''Dump this curveset to a file
-        
+
         --------------------Arguments--------------------
 
         filename: The path where the object should be
@@ -402,18 +402,18 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         with open(filename,'wb') as f:
             pickle.dump(self,f)
 
     def keys(self)->list:
-        '''Return a list of the unique identifiers 
+        '''Return a list of the unique identifiers
         corresponding to each curve in the CurveSet
 
         ---------------------Returns---------------------
 
         A list of unique curve identifiers'''
-        
+
         return list(self.curve_dict.keys())
 
     def __getitem__(self,index)->Curve:
@@ -423,7 +423,7 @@ class CurveSet:
         ---------------------Returns---------------------
 
         A single pyrtz.curves.CurveSet object'''
-        
+
         return self.curve_dict[index]
 
     def remove_curve(self,key):
@@ -436,7 +436,7 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         del self.curve_dict[key]
 
     def correct_virt_defl(self):
@@ -447,9 +447,9 @@ class CurveSet:
         curve. This function updates the curve object
         in place. Note: this function will only update
         the 'f' column of curve.data.
-        
+
         ---------------------Returns---------------------
-        
+
         None'''
 
         for key in self:
@@ -464,7 +464,7 @@ class CurveSet:
 
         A pandas.DataFrame containing every force curve
         in the CurveSet'''
-        
+
         all_curves=[]
         for ident in self.keys():
             this_curve=self[ident].data.copy()
@@ -472,12 +472,12 @@ class CurveSet:
                 this_curve.loc[:,label]=value
             all_curves.append(this_curve)
         return pd.concat(all_curves,ignore_index=True)
-    
+
     #def normalize_curves(curves,idents,t_col='t',z_col='zSensr',f_col='force'):
     def normalize_curves(self)->pd.DataFrame:
         '''Normalize all curves so that the trigger point
-        corresponds to t=0, z=0, f=0 and return all the 
-        resulting normalized force curves as a single 
+        corresponds to t=0, z=0, f=0 and return all the
+        resulting normalized force curves as a single
         pandas.DataFrame
 
         ---------------------Returns---------------------
@@ -485,7 +485,7 @@ class CurveSet:
         A pandas.DataFrame containing every force curve
         in the CurveSet normalized so that the trigger
         point corresponds to t=0, z=0, f=0'''
-        
+
         curves=self.collate_curves()
         idents=list(self.ident_labels)
         cols=self[self.keys()[0]].cols
@@ -525,7 +525,7 @@ class CurveSet:
         return curves
 
     def plot_traj(self,group,filename='characteristic_trajectories.html',round_dec=4):
-        '''Plot the characteristic force curves for each 
+        '''Plot the characteristic force curves for each
         unique value of group.
 
         --------------------Arguments--------------------
@@ -543,7 +543,7 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         data=self.normalize_curves()
         time_col='t_norm'
         f_col='f_norm'
@@ -604,12 +604,12 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         for key in cp_dict:
             self[key].set_contact_index(cp_dict[key])
 
     def update_cp_annotations_from_file(self,cp_file):
-        '''Update the stored contact point for every 
+        '''Update the stored contact point for every
         curve in the CurveSet using a .json file created
         by pyrtz.annocp
 
@@ -621,7 +621,7 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         with open(cp_file,'rt') as cf:
             anno_str_dict=json.load(cf)
 
@@ -634,13 +634,13 @@ class CurveSet:
 
     def fit_all_stiff(self,probe_diameter,fit_range=[0,1]):
         '''Fit all force curves in this CurveSetusing the
-        hertz contact model for an elastic sphere 
+        hertz contact model for an elastic sphere
         indenting an elastic half space
 
         https://en.wikipedia.org/wiki/Contact_mechanics#Contact_between_a_sphere_and_a_half-space
-        
+
         --------------------Arguments--------------------
-        
+
         probe_diameter: The diameter of the indenting
         sphere, in meters
 
@@ -659,7 +659,7 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         for key in self:
             self[key].fit_stiffness(probe_diameter,fit_range)
 
@@ -670,7 +670,7 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         for key in self:
             self[key].fit_biexponential()
 
@@ -682,10 +682,10 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         for key in self:
             self[key].fit_exponential()
-            
+
     def fit_all(self,probe_diameter,fit_range=[0,1]):
         '''Fit this force curve using the hertz contact model
         for an elastic sphere indenting an elastic half space
@@ -694,9 +694,9 @@ class CurveSet:
         decay function
 
         https://en.wikipedia.org/wiki/Contact_mechanics#Contact_between_a_sphere_and_a_half-space
-        
+
         --------------------Arguments--------------------
-        
+
         probe_diameter: The diameter of the indenting
         sphere, in meters
 
@@ -715,7 +715,7 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         self.fit_all_stiff(probe_diameter,fit_range)
         self.fit_all_biexponential()
         self.fit_all_exponential()
@@ -730,7 +730,7 @@ class CurveSet:
 
         A pandas.DataFrame containing the fit parameters
         for every Curve in this CurveSet'''
-        
+
         entries=[]
         for key in self:
             df_dict={}
@@ -750,7 +750,7 @@ class CurveSet:
 
         A pandas.DataFrame containing the fit parameters
         for every Curve in this CurveSet'''
-        
+
         entries=[]
         for key in self:
             df_dict={}
@@ -775,7 +775,7 @@ class CurveSet:
 
         A pandas.DataFrame containing the fit parameters
         for every Curve in this CurveSet'''
-        
+
         entries=[]
         for key in self:
             df_dict={}
@@ -785,7 +785,7 @@ class CurveSet:
             df_dict['C0']=[self[key].exponential_fit['C0']]
             entries.append(pd.DataFrame(df_dict))
         return(pd.concat(entries,ignore_index=True))
-            
+
     def get_all_results(self)->pd.DataFrame:
         '''Export the results of all fits which have been
         performed on this CurveSet
@@ -812,7 +812,7 @@ class CurveSet:
             pass
         if len(all_results)<1:
             raise Exception('No fits have yet been run. Please run a fit before attempting to export results')
-        
+
         elif len(all_results)==1:
             return all_results[0]
         else:
@@ -833,7 +833,7 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         merger=pdf.PdfFileMerger()
         for key in self:
             this_curve=self[key]
@@ -864,7 +864,7 @@ class CurveSet:
         ---------------------Returns---------------------
 
         None'''
-        
+
         merger=pdf.PdfFileMerger()
         for key in self:
             this_curve=self[key]
@@ -876,6 +876,37 @@ class CurveSet:
 
             title=title+f" tau_fast: {this_curve.biexponential_fit['tau_fast']}/s, tau_slow:{this_curve.biexponential_fit['tau_slow']}/s"
             this_fit_fig=this_curve.get_biexponential_fit_figure()
+            this_fit_fig.update_layout(title={'text':title})
+
+            this_fit_fig_pdf=io.BytesIO(this_fit_fig.to_image(format='pdf'))
+            merger.append(this_fit_fig_pdf)
+
+        merger.write(filepath)
+
+    def export_exponential_fit_report(self,filepath):
+        '''Create a .pdf document displaying all
+        exponential fits for this CurveSet
+
+        --------------------Arguments--------------------
+
+        filepath: The path where the fit report should be
+        saved
+
+        ---------------------Returns---------------------
+
+        None'''
+
+        merger=pdf.PdfFileMerger()
+        for key in self:
+            this_curve=self[key]
+            if this_curve.exponential_fit==None:
+                raise Exception('Biexponential fit has not been performed, please run biexponential fit before attempting to export fit reports')
+            title=''
+            for label,ident in zip(self.ident_labels,key):
+                title=title+f'{label}{ident}'
+
+            title=title+f" tau0: {this_curve.exponential_fit['tau0']}/s"
+            this_fit_fig=this_curve.get_exponential_fit_figure()
             this_fit_fig.update_layout(title={'text':title})
 
             this_fit_fig_pdf=io.BytesIO(this_fit_fig.to_image(format='pdf'))
