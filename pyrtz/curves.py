@@ -325,7 +325,7 @@ class Curve:
         p0=[tau0_guess,c_guess]
 
         popt,pconv=scipy.optimize.curve_fit(calc_force,t_norm,f_raw,bounds=bounds,p0=p0,jac='3-point')
-        exponential_fit=dict(tau0=popt[0],C0=popt[0])
+        exponential_fit=dict(tau0=popt[0],C0=popt[1])
 
         fit_curve=pd.DataFrame(dict(t=fit_data['t'],f=calc_force(t_norm,exponential_fit['tau0'],exponential_fit['C0'])))
 
@@ -342,12 +342,12 @@ class Curve:
         illustrating the current fit'''
 
         if not self.exponential_fit:
-            raise Exception('No biexponential fit has yet been performed. Run fit_exponential method')
+            raise Exception('No exponential fit has yet been performed. Run fit_exponential method')
 
         measured_curve=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
         measured_curve.loc[:,'curve']='measured'
 
-        fit_curve=self.biexponential_fit['curve'].copy()
+        fit_curve=self.exponential_fit['curve'].copy()
         fit_curve.loc[:,'curve']='fit'
 
         all_curves=pd.concat([measured_curve,fit_curve],ignore_index=True)

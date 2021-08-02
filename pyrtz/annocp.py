@@ -48,7 +48,7 @@ app.layout=html.Div([
         dcc.Download(id='download-annotations'),
         html.Button('Download annotations',id='download-button')
     ])
-    
+
 ])
 
 def key_index_from_str(curve_count):
@@ -149,7 +149,7 @@ def download(clicks,data):
 
 if __name__=='__main__':
     if len(sys.argv)<3:
-        raise Exception('annocp should be invoked using a statement like: python -m pyrtz.annocp cuve_directory ident_label1 ident_label2 ... [annotations=filename.json]')
+        raise Exception('annocp should be invoked using a statement like: python -m pyrtz.annocp curve_directory ident_label1 ident_label2 ... [annotations=filename.json]')
 
     anno_re=re.compile('^annotations=(?P<anno_file>.*)')
     curve_dir=sys.argv[1]
