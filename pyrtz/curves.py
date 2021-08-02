@@ -253,9 +253,9 @@ class Curve:
         e_threshold=f0-0.63*(f0-c_guess)
         #corresponding time
         e_time=fit_data.loc[fit_data.loc[:,'f']<e_threshold,'t'].to_numpy()[0]
-        tau1_guess=1/e_time
+        tau1_guess=e_time
         tau2_guess=0.1*tau1_guess
-        a_guess=0.9 #arbitrary, took from rasylum, seems to work
+        a_guess=0.4 #arbitrary
 
         def calc_force(t,tau1,tau2,A,C):
             return (f0-C)*(A*np.exp(-1*t*tau1)+(1-A)*np.exp(-1*t*tau2))+C
