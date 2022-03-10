@@ -442,6 +442,27 @@ class CurveSet:
 
         del self.curve_dict[key]
 
+    def remove_unannotated(self):
+        '''Drop all curves for which their contact point
+        has not been annotated (all curves for which
+        curve.contact_index==0)
+
+        --------------------Arguments--------------------
+
+        None
+
+        ---------------------Returns---------------------
+
+        None'''
+        
+        idents_to_drop=[]
+        for ident in self:
+            if self[ident].contact_index==0:
+                idents_to_drop.append(ident)
+
+        for i in idents_to_drop:
+            self.remove_curve(i)
+
     def correct_virt_defl(self):
         '''Correct for non-zero slope of approach curves
         before contact point. This function fits a line
