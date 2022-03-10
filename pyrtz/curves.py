@@ -37,7 +37,7 @@ class Curve:
     biexponential_fit=None
     exponential_fit=None
 
-    def __init__(self,filename,data,parameters,z_col,t_col,f_col,invOLS,k,dwell_range):
+    def __init__(self,filename,data,parameters,z_col,t_col,f_col,ind_col,invOLS,k,dwell_range):
         '''Construct a new pyrtz.curves.Curve object. This method should not be called
         directly by the end user. In normal use, Curve objects should be created by calling
         pyrtz.asylum.load_ibw or pyrtz.asylum.load_curveset_ibw
@@ -55,11 +55,14 @@ class Curve:
         z_col: The (string) name of the column in data
         which contains z position data
 
-        t_col: The (string) name of the colomn in data
+        t_col: The (string) name of the column in data
         which contains time data
 
         f_col: The (string) name of the column in data
         which contains force data
+
+        ind_col: The (string) name of the column in data
+        which contains the indentation data
 
         invOLS: The inverse optical lever sensitivity
         of the lever used for this measurement
@@ -78,7 +81,7 @@ class Curve:
         self.invOLS=invOLS
         self.data=data
         self.parameters=parameters
-        self.cols={'z':z_col,'t':t_col,'f':f_col}
+        self.cols={'z':z_col,'t':t_col,'f':f_col,'ind':ind_col}
         self.filename=filename
 
     def get_approach(self)->pd.DataFrame:
@@ -182,7 +185,7 @@ class Curve:
 
         r=probe_diameter/2
         #Get only contact region and adjust force and indentation so values at contact are 0
-        indent_raw=self.get_approach().loc[self.contact_index:,self.cols['z']].to_numpy()
+        indent_raw=self.get_approach().loc[self.contact_index:,self.cols['ind']].to_numpy()
         force_raw=self.get_approach().loc[self.contact_index:,self.cols['f']].to_numpy()
         indent_norm=indent_raw-indent_raw[0]
         force_norm=force_raw-force_raw[0]
@@ -195,7 +198,7 @@ class Curve:
 
         imin=0
         imax=0
-        for i in list(range(len(force_norm)))[::-1]:
+        for i in list(range(len(force_norm)))[::-1]: #iterate through force readings backwards (trigger first)
             if force_norm[i]>=fmin:
                 imin=i
             if force_norm[i]>=fmax:
@@ -208,7 +211,7 @@ class Curve:
         popt,pcov=scipy.optimize.curve_fit(get_force,indent_norm_fit,force_norm_fit)
 
         estar_fit=popt[0]
-        fit_curve=pd.DataFrame(dict(z=indent_norm_fit+indent_raw[0],f=get_force(indent_norm_fit,estar_fit)+force_raw[0]))
+        fit_curve=pd.DataFrame(dict(ind=indent_norm_fit+indent_raw[0],f=get_force(indent_norm_fit,estar_fit)+force_raw[0]))
         self.stiff_fit=dict(curve=fit_curve,estar=estar_fit)
 
     def get_stiffness_fit_figure(self):
@@ -222,15 +225,15 @@ class Curve:
         if not self.stiff_fit:
             raise Exception('No stiffness fit has yet been performed. Run fit_stiffness method')
 
-        measured_curve=self.get_approach().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
+        measured_curve=self.get_approach().rename(columns={self.cols['z']:'z',self.cols['ind']:'ind',self.cols['t']:'t',self.cols['f']:'f'})
         measured_curve.loc[:,'curve']='measured'
         fit_curve=self.stiff_fit['curve'].copy()
         fit_curve.loc[:,'curve']='fit'
         all_curves=pd.concat([measured_curve,fit_curve],ignore_index=True)
-        fig=px.scatter(all_curves,x='z',y='f',color='curve')
-        fig.update_xaxes(title={'text':'Z Position (m)'})
+        fig=px.scatter(all_curves,x='ind',y='f',color='curve')
+        fig.update_xaxes(title={'text':'Indentation (m)'})
         fig.update_yaxes(title={'text':'Force (N)'})
-        fig.add_vline(x=measured_curve.loc[self.contact_index,'z'])
+        fig.add_vline(x=measured_curve.loc[self.contact_index,'ind'])
         return fig
 
     def fit_biexponential(self):
@@ -240,7 +243,7 @@ class Curve:
 
         None'''
 
-        fit_data=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
+        fit_data=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['ind']:'ind',self.cols['t']:'t',self.cols['f']:'f'})
         f_raw=fit_data['f'].to_numpy()
         f0=f_raw[0]
         t_raw=fit_data['t'].to_numpy()
@@ -284,7 +287,7 @@ class Curve:
         if not self.biexponential_fit:
             raise Exception('No biexponential fit has yet been performed. Run fit_biexponential method')
 
-        measured_curve=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
+        measured_curve=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['ind']:'ind',self.cols['t']:'t',self.cols['f']:'f'})
         measured_curve.loc[:,'curve']='measured'
 
         fit_curve=self.biexponential_fit['curve'].copy()
@@ -303,7 +306,7 @@ class Curve:
 
         None'''
 
-        fit_data=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
+        fit_data=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['ind']:'ind',self.cols['t']:'t',self.cols['f']:'f'})
         f_raw=fit_data['f'].to_numpy()
         f0=f_raw[0]
         t_raw=fit_data['t'].to_numpy()
@@ -344,7 +347,7 @@ class Curve:
         if not self.exponential_fit:
             raise Exception('No exponential fit has yet been performed. Run fit_exponential method')
 
-        measured_curve=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['t']:'t',self.cols['f']:'f'})
+        measured_curve=self.get_dwell().rename(columns={self.cols['z']:'z',self.cols['ind']:'ind',self.cols['t']:'t',self.cols['f']:'f'})
         measured_curve.loc[:,'curve']='measured'
 
         fit_curve=self.exponential_fit['curve'].copy()
@@ -476,7 +479,7 @@ class CurveSet:
     #def normalize_curves(curves,idents,t_col='t',z_col='zSensr',f_col='force'):
     def normalize_curves(self)->pd.DataFrame:
         '''Normalize all curves so that the trigger point
-        corresponds to t=0, z=0, f=0 and return all the
+        corresponds to t=0, z=0, ind=0, f=0 and return all the
         resulting normalized force curves as a single
         pandas.DataFrame
 
@@ -491,8 +494,9 @@ class CurveSet:
         cols=self[self.keys()[0]].cols
         t_col=cols['t']
         z_col=cols['z']
+        ind_col=cols['ind']
         f_col=cols['f']
-        desired_cols=[*idents,t_col,z_col,f_col]
+        desired_cols=[*idents,t_col,z_col,ind_col,f_col]
         curves=curves.loc[:,desired_cols]
 
         maxf=curves.loc[:,[*idents,f_col]].groupby(idents).agg(np.max).reset_index()
@@ -505,11 +509,13 @@ class CurveSet:
 
         curves=pd.merge(curves,maxf)
         norm_vals=curves.query(f'{f_col}==max_f')
-        norm_vals=norm_vals.loc[:,[*idents,t_col,z_col]]
+        norm_vals=norm_vals.loc[:,[*idents,t_col,ind_col,z_col]]
         norm_cols=list(norm_vals.columns)
         for j in range(len(norm_cols)):
             if norm_cols[j]==t_col:
                 norm_cols[j]='t0'
+            elif norm_cols[j]==ind_col:
+                norm_cols[j]='ind0'
             elif norm_cols[j]==z_col:
                 norm_cols[j]='z0'
 
@@ -518,9 +524,10 @@ class CurveSet:
         curves=pd.merge(curves,norm_vals)
         curves.loc[:,'t_norm']=curves.loc[:,t_col]-curves.loc[:,'t0']
         curves.loc[:,'z_norm']=curves.loc[:,z_col]-curves.loc[:,'z0']
+        curves.loc[:,'ind_norm']=curves.loc[:,ind_col]-curves.loc[:,'ind0']
         curves.loc[:,'f_norm']=curves.loc[:,f_col]-curves.loc[:,'max_f']
 
-        curves=curves.loc[:,[*idents,'t_norm','z_norm','f_norm']]
+        curves=curves.loc[:,[*idents,'t_norm','z_norm','ind_norm','f_norm']]
 
         return curves
 
@@ -633,7 +640,7 @@ class CurveSet:
         self.update_cp_annotations(anno_tuple_dict)
 
     def fit_all_stiff(self,probe_diameter,fit_range=[0,1]):
-        '''Fit all force curves in this CurveSetusing the
+        '''Fit all force curves in this CurveSet using the
         hertz contact model for an elastic sphere
         indenting an elastic half space
 

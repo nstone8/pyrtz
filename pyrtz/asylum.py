@@ -29,6 +29,7 @@ def _get_data(wave):
     wave_frame=pd.DataFrame(dict(rawz=wave['wave']['wData'][:,col_indices['rawz']],
                             z=wave['wave']['wData'][:,col_indices['z']],
                             defl=wave['wave']['wData'][:,col_indices['defl']]))
+    wave_frame.loc[:,'ind']=wave_frame.z-wave_frame.defl
     return wave_frame
 
 def load_ibw(filename)->pyrtz.curves.Curve:
@@ -64,8 +65,7 @@ def load_ibw(filename)->pyrtz.curves.Curve:
     
     invOLS=float(notes['InvOLS'])
 
-    this_curve=pyrtz.curves.Curve(filename=filename.split(os.path.sep)[-1],data=data,parameters=notes,z_col='z',t_col='t',f_col='f',invOLS=invOLS,k=k,dwell_range=dwell_range)
-
+    this_curve=pyrtz.curves.Curve(filename=filename.split(os.path.sep)[-1],data=data,parameters=notes,z_col='z',t_col='t',f_col='f',ind_col='ind',invOLS=invOLS,k=k,dwell_range=dwell_range)
     
     return this_curve
 
