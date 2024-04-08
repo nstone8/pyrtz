@@ -862,7 +862,7 @@ class CurveSet:
 
         None'''
 
-        merger=pdf.PdfFileMerger()
+        merger=pdf.PdfMerger()
         for key in self:
             this_curve=self[key]
             if this_curve.stiff_fit==None:
@@ -893,7 +893,7 @@ class CurveSet:
 
         None'''
 
-        merger=pdf.PdfFileMerger()
+        merger=pdf.PdfMerger()
         for key in self:
             this_curve=self[key]
             if this_curve.biexponential_fit==None:
@@ -924,7 +924,7 @@ class CurveSet:
 
         None'''
 
-        merger=pdf.PdfFileMerger()
+        merger=pdf.PdfMerger()
         for key in self:
             this_curve=self[key]
             if this_curve.exponential_fit==None:

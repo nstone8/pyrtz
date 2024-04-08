@@ -1,4 +1,4 @@
-import igor.binarywave as bw
+import igor2.binarywave as bw
 import numpy as np
 import pandas as pd
 import pyrtz.curves
